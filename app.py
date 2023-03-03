@@ -28,7 +28,7 @@ connect_db(app)
 ##############################################################################
 # User signup/login/logout
 
-
+###Register a function to run before each request. For example, this can be used to open a database connection, or to load the logged in user from the session.
 @app.before_request
 def add_user_to_g():
     """If we're logged in, add curr user to Flask global."""
@@ -113,9 +113,10 @@ def login():
 def logout():
     """Handle logout of user."""
     # IMPLEMENT THIS
-    session.pop('curr_user')
+    do_logout()
+    
     flash("You've logged out.", 'success')
-    return redirect("/")
+    return redirect("/login")
 
 ##############################################################################
 # General user routes:
