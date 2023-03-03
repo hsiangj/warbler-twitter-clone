@@ -5,7 +5,7 @@ from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
 from forms import UserAddForm, LoginForm, MessageForm
-from models import db, connect_db, User, Message
+from models import db, connect_db, User, Message, Follows
 
 CURR_USER_KEY = "curr_user"
 
@@ -64,7 +64,7 @@ def signup():
     If the there already is a user with that username: flash message
     and re-present form.
     """
-
+    
     form = UserAddForm()
 
     if form.validate_on_submit():
@@ -112,9 +112,10 @@ def login():
 @app.route('/logout')
 def logout():
     """Handle logout of user."""
-
     # IMPLEMENT THIS
-
+    session.pop('curr_user')
+    flash("You've logged out.", 'success')
+    return redirect("/")
 
 ##############################################################################
 # General user routes:
