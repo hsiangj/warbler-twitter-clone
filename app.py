@@ -233,7 +233,7 @@ def edit_profile():
         flash('Wrong password, please try again.', 'danger')
 
     return render_template('users/edit.html', form=form, user_id=user.id)
-    
+
 @app.route('/users/delete', methods=["POST"])
 def delete_user():
     """Delete user."""
@@ -310,10 +310,14 @@ def homepage():
     - anon users: no messages
     - logged in: 100 most recent messages of followed_users
     """
+   
 
     if g.user:
+        following_ids = [f.id for f in g.user.following] + [g.user.id]
+
         messages = (Message
                     .query
+                    .filter(Message.user_id.in_(following_ids))
                     .order_by(Message.timestamp.desc())
                     .limit(100)
                     .all())
