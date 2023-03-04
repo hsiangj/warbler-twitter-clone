@@ -1,6 +1,6 @@
 import os
 
-from flask import Flask, render_template, request, flash, redirect, session, g
+from flask import Flask, render_template, request, flash, redirect, session, g, abort
 from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
@@ -18,7 +18,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = (
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ECHO'] = False
-app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = True
+app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', "it's a secret")
 toolbar = DebugToolbarExtension(app)
 
@@ -114,7 +114,7 @@ def logout():
     """Handle logout of user."""
     # IMPLEMENT THIS
     do_logout()
-    
+
     flash("You've logged out.", 'success')
     return redirect("/login")
 
@@ -207,6 +207,40 @@ def stop_following(follow_id):
     db.session.commit()
 
     return redirect(f"/users/{g.user.id}/following")
+
+@app.route('/users/<int:user_id>/likes', methods=['GET'])
+def show_likes(user_id):
+    """Show liked messages for a particular user."""
+
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+    
+    user = User.query.get_or_404(user_id)
+    return render_template("users/likes.html", user=user)
+
+@app.route('/users/add_like/<int:message_id>', methods=['POST'])
+def add_like(message_id):
+    """Toggle like/unlike of a warble for the logged in user."""
+
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+    
+    liked_msg = Message.query.get_or_404(message_id)
+
+    if g.user.id == liked_msg.user_id:
+        return abort(403)
+    
+    curr_likes = g.user.likes
+    if liked_msg in curr_likes:
+        g.user.likes = [like for like in curr_likes if like != liked_msg]
+    else:
+        g.user.likes.append(liked_msg)
+
+    db.session.commit()
+
+    return redirect('/')
 
 
 @app.route('/users/profile', methods=["GET", "POST"])
@@ -322,8 +356,10 @@ def homepage():
                     .order_by(Message.timestamp.desc())
                     .limit(100)
                     .all())
+        
+        liked_msg_ids = [msg.id for msg in g.user.likes]
 
-        return render_template('home.html', messages=messages)
+        return render_template('home.html', messages=messages, likes=liked_msg_ids)
 
     else:
         return render_template('home-anon.html')
