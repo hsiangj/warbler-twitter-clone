@@ -17,7 +17,7 @@ from models import db, User, Message, Follows
 # connected to the database
 
 os.environ['DATABASE_URL'] = "postgresql:///warbler-test"
-
+app.config['SQLALCHEMY_ECHO'] = False
 
 # Now we can import app
 
@@ -27,6 +27,7 @@ from app import app
 # once for all tests --- in each test, we'll delete the data
 # and create fresh new clean test data
 
+db.drop_all()
 db.create_all()
 
 
@@ -40,12 +41,13 @@ class UserModelTestCase(TestCase):
         Message.query.delete()
         Follows.query.delete()
 
+        ## user id is going to be assigned after commit and will be different every time, so it's useful to pre-assign before commit.
         u1 = User.signup('test1', 'test1@email.com', 'test1', None)
         u1.id = 11111
         u2 = User.signup('test2', 'test2@email.com', 'test2', None)
         u2.id = 22222
         db.session.commit()
-
+        ## query object mimics query behavior in routes
         u1 = User.query.get(u1.id)
         u2 = User.query.get(u2.id)
 
@@ -58,7 +60,10 @@ class UserModelTestCase(TestCase):
 
     def tearDown(self):
         """Clean up any fouled transaction."""
+        ### any other teardown the parent/ancestor may have, do it here too.
+        res = super().tearDown()
         db.session.rollback()
+        return res
     
     def test_user_model(self):
         """Does basic model work?"""
