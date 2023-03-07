@@ -51,6 +51,8 @@ class UserViewTestCase(TestCase):
         self.u2.id=22222
         self.u3 = User.signup(username='u3',email='u3@test.com',password='password', image_url=None)
         self.u3.id=33333
+        self.u4 = User.signup(username='u4',email='u4@test.com',password='password', image_url=None)
+        self.u4.id = 44444
         db.session.commit()
 
     def tearDown(self):
@@ -169,4 +171,68 @@ class UserViewTestCase(TestCase):
       db.session.add_all([f1,f2,f3])
       db.session.commit()
     
+    def test_show_stats(self):
+      self.setup_followers()
+
+      with self.client as c:
+          res = c.get(f'/users/{self.test.id}')
+
+          self.assertIn('@test', str(res.data))
+          soup = BeautifulSoup(str(res.data), 'html.parser')
+          found = soup.find_all('li', {'class':'stat'})
+          
+          self.assertEqual(len(found), 4)
+          #messages
+          self.assertIn('0',found[0].text)
+          #following
+          self.assertIn('2',found[1].text)
+          #followers
+          self.assertIn('1',found[2].text)
+          #likes
+          self.assertIn('0',found[3].text)
     
+    def test_show_following(self):
+      self.setup_followers()
+      
+      with self.client as c:
+        with c.session_transaction() as sess:
+           sess[CURR_USER_KEY] = self.test.id
+        res = c.get(f'/users/{self.test.id}/following')
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('@u2', str(res.data))
+        self.assertIn('@u3', str(res.data))
+        self.assertNotIn('@u4', str(res.data))
+    
+    def test_show_followers(self):
+       self.setup_followers()
+
+       with self.client as c:
+          with c.session_transaction() as sess:
+             sess[CURR_USER_KEY] = self.test.id
+          res = c.get(f'/users/{self.test.id}/followers')
+          self.assertEqual(res.status_code, 200)
+          self.assertIn('@u2', str(res.data))
+          self.assertNotIn('@u3', str(res.data))
+          self.assertNotIn('@u4', str(res.data))
+    
+    def test_unauthorized_show_following(self):
+      self.setup_followers()
+      
+      with self.client as c:
+        res = c.get(f'/users/{self.test.id}/following', follow_redirects=True)
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('Access unauthorized', str(res.data))
+        self.assertNotIn('@u2', str(res.data))
+       
+    def test_unauthorized_show_followers(self):
+       self.setup_followers()
+
+       with self.client as c:
+          res = c.get(f'/users/{self.test.id}/followers', follow_redirects=True)
+          self.assertEqual(res.status_code, 200)
+          self.assertIn('Access unauthorized', str(res.data))
+          self.assertNotIn('@u2', str(res.data))
+
+
+
+
