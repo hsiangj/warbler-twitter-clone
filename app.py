@@ -64,7 +64,9 @@ def signup():
     If the there already is a user with that username: flash message
     and re-present form.
     """
-    
+    if CURR_USER_KEY in session:
+        del session[CURR_USER_KEY]
+
     form = UserAddForm()
 
     if form.validate_on_submit():
@@ -75,6 +77,7 @@ def signup():
                 email=form.email.data,
                 image_url=form.image_url.data or User.image_url.default.arg,
             )
+
             db.session.commit()
 
         except IntegrityError:
@@ -186,6 +189,9 @@ def add_follow(follow_id):
     if not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
+
+    if follow_id == g.user.id:
+        abort(403)
 
     followed_user = User.query.get_or_404(follow_id)
     g.user.following.append(followed_user)
@@ -368,6 +374,11 @@ def homepage():
     else:
         return render_template('home-anon.html')
 
+@app.errorhandler(404)
+def page_not_foune(e):
+    """404 page"""
+
+    return render_template('404.html')
 
 ##############################################################################
 # Turn off all caching in Flask
